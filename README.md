@@ -29,11 +29,17 @@ To test
 mvn test
 ```
 
+To run integration tests
+```
+mvn verify
+```
+
 ## Typical use-case
 
-1. Run Super Simple Stocks Application. To do this locate ... and run from that folder
+1. Run Super Simple Stocks Application. To do this locate *sssc* and run from that folder
 ```
-java -jar ...
+cd sssc
+mvn exec:java -Dexec.mainClass="com.github.kilork.sssc.App"
 ```
 
 2. Use interactive dialog to perform operations
