@@ -37,6 +37,7 @@ mvn verify
 ## Typical use-case
 
 1. Run Super Simple Stocks Application. To do this locate *sssc* and run from that folder
+
 ```
 cd sssc
 mvn exec:java -Dexec.mainClass="com.github.kilork.sssc.App"
@@ -45,7 +46,6 @@ mvn exec:java -Dexec.mainClass="com.github.kilork.sssc.App"
 2. Use interactive dialog to perform operations
 
 ## GBCE Sample Data
-
 
 | Stock Symbol |Type|Last Dividend|Fixed Dividend|Par Value|
 |-----------:|---:|------------:|-------------:|--------:|
