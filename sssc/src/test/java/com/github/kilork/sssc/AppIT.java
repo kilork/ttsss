@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Scanner;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -38,16 +39,7 @@ import org.junit.Test;
  */
 public class AppIT {
 
-    public AppIT() {
-    }
-    private static final String[] OUTPUT_WELCOME = {
-        "The Global Beverage Corporation Exchange Stock Market (client: 0.0.1, server: 0.0.1)",
-        "==="
-    };
-    private static final String[] OUTPUT_MAIN_MENU = {
-        "1 Stock operations",
-        "2 All Share Index"
-    };
+    private static final String[] SYMBOLS = {"ALE", "GIN", "JOE", "POP", "TEA"};
 
     @Test
     public void testAllShareIndexNoData() {
@@ -67,9 +59,7 @@ public class AppIT {
                 .build());
         String output = screen.consoleOutput();
         System.out.println(output);
-        Matcher matcher = Pattern.compile("Symbol=([^,]+).+Last Dividend=([^,]+)").matcher(output);
-        assertThat(matcher.find(), is(true));
-        assertThat(matcher.group(1), is(symbol));
+        Matcher matcher = validateSelectedSymbol(output, symbol);
         String lastError = screen.lastError();
         StockPrice dividendPrice = StockPrice.valueOf(matcher.group(2));
         if (StockPrice.ZERO.compareTo(dividendPrice) == 0) {
@@ -79,10 +69,16 @@ public class AppIT {
         }
     }
 
+    private Matcher validateSelectedSymbol(String output, String symbol) {
+        Matcher matcher = Pattern.compile("Symbol=([^,]+).+Last Dividend=([^,]+)").matcher(output);
+        assertThat(matcher.find(), is(true));
+        assertThat(matcher.group(1), is(symbol));
+        return matcher;
+    }
+
     @Test
     public void testStockOperationsPERatio() {
-        String[] symbols = {"ALE", "GIN", "JOE", "POP", "TEA"};
-        for (String symbol : symbols) {
+        for (String symbol : SYMBOLS) {
             testStockOperationsPERatio(symbol);
         }
     }
@@ -96,16 +92,71 @@ public class AppIT {
                 .select(0) // exit to main menu
                 .select(0) // exit from application
                 .build());
-        System.out.println(screen.consoleOutput());
+        String output = screen.consoleOutput();
+        System.out.println(output);
+        validateSelectedSymbol(output, symbol);
         assertThat(screen.lastError(), is(nullValue()));
     }
 
     @Test
     public void testStockOperationsDividendYield() {
-        String[] symbols = {"ALE", "GIN", "JOE", "POP", "TEA"};
-        for (String symbol : symbols) {
+        for (String symbol : SYMBOLS) {
             testStockOperationsDividendYield(symbol);
         }
+    }
+
+    private CommandInputBuilder recordTrade(CommandInputBuilder builder) {
+        return builder
+                .select(3)
+                .add("-") // current time
+                .add("10") // enter quantity
+                .add("s") // sell
+                .enterPrice("100") // price
+                ;
+    }
+
+    private void testStockOperationsRecordTrade(String symbol) {
+        TestScannerScreen screen = runApp(command()
+                .select(1) // stock operations
+                .chooseStock(symbol)
+                .update(this::recordTrade)
+                .select(4) // calculate
+                .select(0) // exit to main menu
+                .select(0) // exit from application
+                .build());
+        String output = screen.consoleOutput();
+        System.out.println(output);
+        validateSelectedSymbol(output, symbol);
+        assertThat(screen.lastError(), is(nullValue()));
+        assertThat(output, containsString("Volume Weighted Stock Price in last 5 minutes: 100.00"));
+    }
+
+    @Test
+    public void testStockOperationsRecordTrade() {
+        for (String symbol : SYMBOLS) {
+            testStockOperationsRecordTrade(symbol);
+        }
+    }
+
+    @Test
+    public void testAllShareIndexEqualData() {
+        CommandInputBuilder commandBuilder = command();
+        for (String symbol : SYMBOLS) {
+            commandBuilder
+                    .select(1) // stock operations
+                    .chooseStock(symbol)
+                    .update(this::recordTrade)
+                    .select(4) // calculate
+                    .select(0); // exit to main menu
+        }
+        commandBuilder
+                .select(2) // calculate all share index
+                .select(0); // exit
+        TestScannerScreen screen = runApp(commandBuilder.build());
+        String output = screen.consoleOutput();
+        System.out.println(output);
+        assertThat(screen.lastError(), is(nullValue()));
+        assertThat(output, containsString("All Share Index in last 5 minutes: 100.00"));
     }
 
     private static CommandInputBuilder command() {
@@ -116,7 +167,7 @@ public class AppIT {
 
         private final List<String> commands = new ArrayList<>();
 
-        private CommandInputBuilder add(String command) {
+        public CommandInputBuilder add(String command) {
             commands.add(command);
             return this;
         }
@@ -131,6 +182,10 @@ public class AppIT {
 
         public CommandInputBuilder enterPrice(String stockPrice) {
             return add(stockPrice);
+        }
+
+        public CommandInputBuilder update(Function<CommandInputBuilder, CommandInputBuilder> function) {
+            return function.apply(this);
         }
 
         public String build() {
